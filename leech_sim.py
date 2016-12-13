@@ -23,6 +23,7 @@ def add_worm(space, worm_segs):
 		x = x + 40
 		body.position = x, 300
 		shape = pymunk.Circle(body, radius)
+		shape.friction = 1.0
 		resting_length = 10
 		stiffness = 20
 		damping = 5
@@ -88,7 +89,11 @@ def main():
     	clock = pygame.time.Clock()
 
 	space = pymunk.Space()
-	space.gravity = (0.0, 0.0)
+	space.gravity = (0.0, -100.0)
+
+	shape = pymunk.Segment(space.static_body, (5, 100), (595,100), 1.0)
+        shape.friction = 1.0
+        space.add(shape)
 	
     	worm_segs = []
     	draw_options = pymunk.pygame_util.DrawOptions(screen)
@@ -111,8 +116,6 @@ def main():
 		v=v+0.5*(0.04*np.power(v,2)+5*v+140-u+I)
 		v=v+0.5*(0.04*np.power(v,2)+5*v+140-u+I)
 		u=u+np.multiply(a,(np.multiply(b,v-u)))
-		out = ml.zeros((Ne+Ni,1))
-		out[fired] = 1
 		I = ml.zeros((Ne+Ni,1))
 
 
@@ -122,10 +125,28 @@ def main():
         	screen.fill((255,255,255))
         	space.debug_draw(draw_options)
 		for i in range(1,segments):
-			length = math.sin((counter+10*i)*3.14159265/45)*10
+			'''
+			print(v[(i*6)-3,0])
+			if v[(i*6)-3,0] > 30:
+				lengthL = 0
+			else:
+				lengthL = 30
 
+			if v[(i*6)+3,0] > 30:
+				lengthR = 0
+			else:
+				lengthR = 30
+
+			worm_segs[i][2].rest_length = lengthL
+			worm_segs[i][3].rest_length = lengthR
+			'''
+		
+			#'''
+			# sine oscillator for test
+			length = math.sin((counter+10*i)*3.14159265/45)*20
 			worm_segs[i][2].rest_length = length
 			worm_segs[i][3].rest_length = -length
+			#'''
 		counter = counter + 1
         	pygame.display.flip()
         	clock.tick(50)
