@@ -27,7 +27,7 @@ def add_worm(space, worm_segs, num_segs):
 		damping = 2
 		if i > 0:
 			jointL = pymunk.DampedSpring(body, worm_segs[i-1][0], (0,20), (0,20), resting_length, stiffness, damping)
-			jointC = pymunk.DampedSpring(body, worm_segs[i-1][0], (-20,0), (20,0), .1, stiffness, damping)
+			jointC = pymunk.DampedSpring(body, worm_segs[i-1][0], (-20,0), (20,0), .1, 30, 5)
 			jointR = pymunk.DampedSpring(body, worm_segs[i-1][0], (0,-20), (0,-20), resting_length, stiffness, damping)
 			space.add(body, shape, jointL, jointR, jointC)
 			worm_segs.append([body, shape, jointL, jointR])
@@ -35,17 +35,11 @@ def add_worm(space, worm_segs, num_segs):
 			space.add(body, shape)
 			worm_segs.append([body, shape])
 
-
-def to_pygame(p):
-    return int(p.x), int(-p.y+600)
-
 def main():
-	np.set_printoptions(threshold=np.nan)
+	segments = 7 # length of leech
 
 
-	################ izhikevich setup ################
-
-	segments = 7
+	################ izhikevich model ################
 
 	Ne=segments*12+2                 
 	Ni=0
@@ -61,7 +55,7 @@ def main():
 	u=volt
 	np.multiply(b,u)
 	
-
+	# create network connections in segments
 	for i in range(0,segments):
 		n = 12*i
 		for ii in range(1,12):
@@ -86,8 +80,9 @@ def main():
     	clock = pygame.time.Clock()
 
 	space = pymunk.Space()
-	space.gravity = (0.0, -50.0)
+	space.gravity = (0.0, 0.0)
 
+	# add a floor and walls so the leech doesnt leave
 	shape = pymunk.Segment(space.static_body, (0,0), (800,0), 1.0)
         shape.friction = 1.0
         space.add(shape)
@@ -97,16 +92,25 @@ def main():
 	shape = pymunk.Segment(space.static_body, (800,0), (800,100), 1.0)
         shape.friction = 1.0
         space.add(shape)
-
+	
+	# setup rendering and create leech
     	worm_segs = []
     	draw_options = pymunk.pygame_util.DrawOptions(screen)
 	lines = add_worm(space, worm_segs, segments)
-	counter = 0
+
+	counter = 0 # for sine oscillator
 		
-	lengthL = 30
+	lengthL = 30 # initial lengths for muscle
 	lengthR = 30
+	
+	oscillator = 1 # 1 for neural oscillator, 2 for sine
+
+
+	############# simulation loop #############
 
     	while True:
+
+		# allow closing of program
         	for event in pygame.event.get():
             		if event.type == QUIT:
                 		sys.exit(0)
@@ -114,8 +118,9 @@ def main():
                 		sys.exit(0)
 
 
-		########### leech #############
-        	space.step(1/50.0)
+		########### render screen #############
+
+        	space.step(1/50.0) # i think this is simulation speed
 
         	screen.fill((255,255,255))
         	space.debug_draw(draw_options)
@@ -140,47 +145,31 @@ def main():
 		I = ml.zeros((Ne+Ni,1))
 
 
+		############ move 'muscles' ##########
+
 		for i in range(1,segments):
-			#'''
+			
+			if (oscillator == 1):
+				if fired[(i*12)-1] > 0:
+					lengthL = -200
+				else:
+					lengthL = 0
 
-			if fired[(i*12)-1] > 0:
-				lengthL = -200
-			else:
-				lengthL = 0
+				if fired[(i*12)-9] > 0:
+					lengthR = -200
+				else:
+					lengthR = 0
 
-			if fired[(i*12)-9] > 0:
-				lengthR = -200
-			else:
-				lengthR = 0
+				worm_segs[i][2].rest_length = lengthL
+				worm_segs[i][3].rest_length = lengthR
+			
+			elif (oscillator == 2):
+				# sine oscillator for test
+				length = math.sin((counter+10*i)*3.14159265/45)*20
+				worm_segs[i][2].rest_length = -length
+				worm_segs[i][3].rest_length = length
 
-			worm_segs[i][2].rest_length = lengthL
-			worm_segs[i][3].rest_length = lengthR
-			#'''	
-
-			'''
-			#print(volt[(i*6)-3,0])
-			if fired[(i*6)-3] > 0:
-				lengthL = 30
-			else:
-				if lengthL >= -30:
-					lengthL -= 3
-
-			if fired[(i*6)+3] > 0:
-				lengthR = 30
-			else:
-				if lengthR >= -30:
-					lengthR -= 3
-
-			worm_segs[i][2].rest_length = lengthL
-			worm_segs[i][3].rest_length = lengthR
-			'''
-		
-			'''
-			# sine oscillator for test
-			length = math.sin((counter+10*i)*3.14159265/45)*20
-			worm_segs[i][2].rest_length = -length
-			worm_segs[i][3].rest_length = length
-			'''
+			
 		counter = counter + 1
         	pygame.display.flip()
         	clock.tick(50)
